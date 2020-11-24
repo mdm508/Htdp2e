@@ -2,9 +2,14 @@
 ;; about the language level of this file in a form that our tools can easily process.
 #reader(lib "htdp-beginner-reader.ss" "lang")((modname |106|) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 ; 106
+; Update the code so it works with VAnimal
+; In this problem we want to apply the design recipe for mixed data
+; http://htdp.org/2003-09-26/Book/curriculum-Z-H-10.html#node_sec_7.2
+
 (require 2htdp/universe)
 (require 2htdp/image)
 
+; 1) Data Analysis & Constant definition
 ; a VAnimal is either
 ; a VCat or
 ; a VCham
@@ -19,130 +24,156 @@
 (define SN-MID-Y (/ SN-HEIGHT 2))
 (define SN-MID-X (/ SN-WIDTH 2))
 (define SN (empty-scene SN-WIDTH SN-HEIGHT))
-;; Constants related to the cat
 (define VANIMAL-DX (* 0.05 SN-WIDTH))
 (define CAT (bitmap/file "../assets/ninja_a.png"))
-(define CHAM (rotate 90 (bitmap/file "../assets/chameleon.png")))
 (define CAT-ALT (bitmap/file "../assets/ninja_b.png"))
-; The cat is anchored at the bottom of the screen
-; this number is how much to shift the cat up by
-(define CAT-SHIFT-Y (- SN-HEIGHT (/ (image-height CAT) 2)))
+(define CHAM (rotate  (bitmap/file "../assets/chameleon.png")))
+(define CHAM-ALT (rotate 40 CHAM))
+; The va is anchored at the bottom of the screen
+; this number is how much to shift the va up by
+(define VA-DELTAY (- SN-HEIGHT (/ (image-height CAT) 2)))
 ; the cordinate where the cat would appear off the screen
 (define SN-EDGE (ceiling (+ SN-WIDTH (/ (image-width CAT) 2))))
-;; Constants related to the bar
-; The bar is anchored on the left side of the screen
-; when we do place image we must shift the bar this amount
-(define BAR-SHIFT-X (/ SN-WIDTH 2))
 (define BAR-HEIGHT (/ SN-HEIGHT 4))
 (define HDECREASE .33)
 (define SMHAPPY 1/3)
 (define LGHAPPY 1/5)
-; max happiness amount is 100
-(define BAR-SCALE (/ SN-WIDTH 100))
 
-;; Functions related to the cat
+; Test instances used in multiple test cases
+(define cham1 (make-vcham (/ SN-WIDTH 2) 100))
+(define cat1 [make-vcat (/ SN-WIDTH 2) 100])
 
+
+; 2 Template design
+; This tepmlate is used in several places throughout the program
+; VAnimal -> ??
+;(define (f va )
+;  (cond [(vcat? va) (vcat-cx va) ... (vcat-ch va)])
+;        [(vcham? va) (vcham-cx va) .. (vcat-cx va)])
+;(check-expect (f cham1)
+;              ...))
+
+; Helper functions
 ; Number -> Number
-; Calculate the next x coordinate that the cat will go to
 (define (calc-next-x current-x)
   (modulo (+ current-x VANIMAL-DX) SN-EDGE))
-
-;c
-; CatState -> Image
-; use the cats locations to determine
-; which cat sprite to use
-(define (render-cat cs)
-  (if (odd? (vcat-cx cs)) CAT-ALT CAT))
-
-;;;;;CHANGE
-; CatState -> Image
-; places the cat onto the empty scene
-; this is an intermediate image
-; that will later be combined with the
-; progress bar
-(define (place-cat-on-scene cs)
-  (place-image/align (render-cat cs)
-                                 (vcat-cx cs)
-                                 CAT-SHIFT-Y
-                                 "center"
-                                 "bottom"
-                                 SN))
-
-;; Functions related to the bar
-;;;;;CHANGE
-; CatState -> Image
-(define (render-happy-bar cs)
-  (rectangle (calculate-happy-bar-width (vcat-ch cs)) BAR-HEIGHT "solid" "red"))
-
 ; Number -> Number
-; function to determine the appropriate width of the bar
-; based on the level of happiness hs
 (define (calculate-happy-bar-width hs)
   (* hs (/ SN-WIDTH 100)))
-
 (check-expect (calculate-happy-bar-width 100)
               (* 100 (/ SN-WIDTH 100)))
-
-; HappyState -> Number
+; Number -> Number
 ; hs is current happiness level
 ; purpose: decrease happiness unless its already zero
-(define (calc-next-happy hs)
+(define (decrease-happy hs)
   (if (> hs 0) (- hs (* hs HDECREASE)) 0))
-
-(define (increase-happy hs key)
-  (cond
-    [(key=? key "up")    (+ hs (* hs SMHAPPY))]
-    [(key=? key "down")  (+ hs (* hs LGHAPPY))]))             
-
-
-;; Handlers
-
+; VAnimal -> Image
+; decides which va image to use so when animated
+; the illusion of movement is created
+(define (choose-va-image va)
+  (cond [(vcat? va)
+         (if (odd? (vcat-cx va)) CAT-ALT CAT)]
+        [(vcham? va)
+         (if (odd? (vcham-cx va)) CHAM-ALT CHAM)]))
+(define e-cham (make-vcham 100 100))
+(define o-cham (make-vcham 101 100))
+(define e-cat (make-vcat 100 100))
+(define o-cat (make-vcat 101 100))
+(check-expect (choose-va-image e-cat)
+              (if (odd? (vcat-cx e-cat)) CAT-ALT CAT))
+(check-expect (choose-va-image o-cat)
+              (if (odd? (vcat-cx o-cat)) CAT-ALT CAT))
+(check-expect (choose-va-image o-cham)
+              (if (odd? (vcham-cx o-cham)) CHAM-ALT CHAM))
+(check-expect (choose-va-image e-cham)
+              (if (odd? (vcham-cx e-cham)) CHAM-ALT CHAM))
+; VAnimal -> Image
+(define (place-va-on-scene va)
+  (place-image/align (choose-va-image va)
+                     (cond [(vcat? va)
+                            (vcat-cx va)]
+                           [(vcham? va)
+                            (vcham-cx va)]
+                           )
+                     VA-DELTAY
+                     "center"
+                     "bottom"
+                     SN))
+(check-expect (place-va-on-scene cham1)
+              (place-image/align (choose-va-image cham1)
+                                 (cond [(vcat? cham1)
+                                        (vcat-cx cham1)]
+                                       [(vcham? cham1)
+                                        (vcham-cx cham1)]
+                                       )
+                                 VA-DELTAY
+                                 "center"
+                                 "bottom"
+                                 SN))
+(check-expect (place-va-on-scene cat1)
+              (place-image/align (choose-va-image cat1)
+                                 (cond [(vcat? cat1)
+                                        (vcat-cx cat1)]
+                                       [(vcham? cat1)
+                                        (vcham-cx cat1)]
+                                       )
+                                 VA-DELTAY
+                                 "center"
+                                 "bottom"
+                                 SN))
 ; VAnimal -> VAnimal
-; Each clock tick update the x position of the animal
-; The happiness level of the vanimal should decrease
+; Each clock tick update the x position of va and decrease its happiness
 (define (clock-tick-handler va)
-  (cond [(vcat? va) (make-vcat (calc-next-x (vcat-cx va))
-                               (calc-next-happy (vcat-ch va)))]
-        [(vcham? va) ...]))
-
-
-;;;;;CHANGE
-; CatState -> Image
-; place the happy bar onto a scene that already has a cat on it
-; **better way to do this is to use place images but we have not
-; yet learned about lists
-(define (render cs)
-  (place-image/align (render-happy-bar cs) 0 0 "left" "top" (place-cat-on-scene cs)))
-
-;;Testing
-(define c1 (make-vcat 200 20))
-(define c2 (make-vcat 1 0))
-(define happy-cat (make-vcat 0 100))
-(define cat-past-edge (make-vcat (+ 50 SN-EDGE) 0))
-
-(check-expect (calc-next-cat-x (vcat-cx c1))
-              (modulo (+ (vcat-cx c1) VANIMAL-DX) SN-EDGE))
-
-(check-expect (place-cat-on-scene c1)
-              (place-image/align (render-cat c1)
-                                 (vcat-cx c1)
-                                 CAT-SHIFT-Y
-                                 "center"
-                                 "bottom"
-                                 SN))
-(check-expect (place-cat-on-scene c2)
-              (place-image/align (render-cat c2)
-                                 (vcat-cx c2)
-                                 CAT-SHIFT-Y
-                                 "center"
-                                 "bottom"
-                                 SN))
-(check-expect (render c1)
-              (place-image/align (render-happy-bar c1) 0 0 "left" "top" (place-cat-on-scene c1)))
-
-;;Main
-(define (main cs0)
-  (big-bang cs0
+  (cond [(vcat? va)
+         (make-vcat (calc-next-x (vcat-cx va))
+                    (decrease-happy (vcat-ch va)))]
+        [(vcham? va)
+         (make-vcham(calc-next-x (vcham-cx va))
+                    (decrease-happy (vcham-ch va)))]))
+(check-expect (clock-tick-handler cham1)
+              (make-vcham (calc-next-x (vcham-cx cham1))
+                          (decrease-happy (vcham-ch cham1))))
+(check-expect (clock-tick-handler cat1)
+              (make-vcat (calc-next-x (vcat-cx cat1))
+                         (decrease-happy (vcat-ch cat1))))
+; VAnimal -> Image
+; Render a happiness bar for va
+(define (render-happy-bar va)
+  (cond [(vcat? va)
+         (rectangle (calculate-happy-bar-width (vcat-ch va)) BAR-HEIGHT "solid" "red")]
+        [(vcham? va)
+         (rectangle (calculate-happy-bar-width (vcham-ch va)) BAR-HEIGHT "solid" "red")]))
+(check-expect (render-happy-bar cham1)
+              (rectangle (calculate-happy-bar-width (vcham-ch cham1)) BAR-HEIGHT "solid" "red"))
+(check-expect (render-happy-bar cat1)
+              (rectangle (calculate-happy-bar-width (vcat-ch cat1)) BAR-HEIGHT "solid" "red"))
+; Vanimal -> Image
+; places happiness bar onto a scene that already contains the virtual animal
+(define (render va)
+  (place-image/align (render-happy-bar va)
+                     0 0 "left" "top"
+                     (place-va-on-scene va)))
+; Number String -> Number
+; hlevel is the happiness level of the va
+(define (increase-happy hlevel key)
+  (cond
+    [(key=? key "up")    (+ hlevel (* hlevel SMHAPPY))]
+    [(key=? key "down")  (+ hlevel (* hlevel LGHAPPY))]
+    [else (decrease-happy hlevel)]))             
+; VAnimal -> VAnimal
+(define (key-handler va key)
+  (cond [(vcat? va)
+         (make-vcat (vcat-cx va)
+                    (increase-happy (vcat-ch va) key))]
+        [(vcham? va)
+         (make-vcham (vcham-cx va)
+                     (increase-happy (vcham-ch va) key))]))
+; Main
+; VAnimal -> VAnimal
+(define (main va)
+  (big-bang va
+    [to-draw render]
     [on-tick clock-tick-handler 1]
-    [to-draw render]))
-(main (make-vcat 0 100))
+    [on-key key-handler]))
+;(main (make-vcat 0 100))
+(main (make-vcham 0 100))
