@@ -10,14 +10,18 @@
 (require 2htdp/universe)
 (require 2htdp/image)
 
-; 1) Data Analysis & Constant definition
-; a VAnimal is either
-; a VCat or
-; a VCham
-; cx is x coordinate of Vanimal
-; ch is happiness level of Vanimal
+; VAnimal is either VCat or VCham
 (define-struct vcat [cx ch])
 (define-struct vcham [cx ch])
+
+; Zoo
+(define-struct zoo [focused hidden])
+; a Zoo is a structure to help us store data on
+; the animals in a zoo.
+; focused & hidden are both VAnimals
+; focused designates which
+; animal will be sent keystrokes to and rendered on the window
+; (make-zoo (make-vcat 100 100) (make-vcham 100 100)
 
 ;; Constants
 (define SN-WIDTH 420)
@@ -28,7 +32,7 @@
 (define VANIMAL-DX (* 0.05 SN-WIDTH))
 (define CAT (bitmap/file "../assets/ninja_a.png"))
 (define CAT-ALT (bitmap/file "../assets/ninja_b.png"))
-(define CHAM (rotate  (bitmap/file "../assets/chameleon.png")))
+(define CHAM (rotate  80 (bitmap/file "../assets/chameleon.png")))
 (define CHAM-ALT (rotate 40 CHAM))
 ; The va is anchored at the bottom of the screen
 ; this number is how much to shift the va up by
@@ -43,16 +47,7 @@
 ; Test instances used in multiple test cases
 (define cham1 (make-vcham (/ SN-WIDTH 2) 100))
 (define cat1 [make-vcat (/ SN-WIDTH 2) 100])
-
-
-; 2 Template design
-; This tepmlate is used in several places throughout the program
-; VAnimal -> ??
-;(define (f va )
-;  (cond [(vcat? va) (vcat-cx va) ... (vcat-ch va)])
-;        [(vcham? va) (vcham-cx va) .. (vcat-cx va)])
-;(check-expect (f cham1)
-;              ...))
+(define zoo1 (make-zoo cham1 cat1))
 
 ; Helper functions
 ; Number -> Number
@@ -148,12 +143,12 @@
               (rectangle (calculate-happy-bar-width (vcham-ch cham1)) BAR-HEIGHT "solid" "red"))
 (check-expect (render-happy-bar cat1)
               (rectangle (calculate-happy-bar-width (vcat-ch cat1)) BAR-HEIGHT "solid" "red"))
-; Vanimal -> Image
-; places happiness bar onto a scene that already contains the virtual animal
-(define (render va)
-  (place-image/align (render-happy-bar va)
+; Zoo -> Image
+; Whataever animnal is focused is rendered onto the screen
+(define (render zoo)
+  (place-image/align (render-happy-bar (zoo-focused zoo))
                      0 0 "left" "top"
-                     (place-va-on-scene va)))
+                     (place-va-on-scene (zoo-focused zoo))))
 ; Number String -> Number
 ; hlevel is the happiness level of the va
 (define (increase-happy hlevel key)
@@ -169,6 +164,7 @@
         [(vcham? va)
          (make-vcham (vcham-cx va)
                      (increase-happy (vcham-ch va) key))]))
+
 ; Main
 ; VAnimal -> VAnimal
 (define (main va)
@@ -176,5 +172,6 @@
     [to-draw render]
     [on-tick clock-tick-handler 1]
     [on-key key-handler]))
-;(main (make-vcat 0 100))
-(main (make-vcham 0 100))
+(define start-zoo (zoo (make-vcat 0 100)
+                       (make-vcham 0 100)))
+;(main start-zoo)
