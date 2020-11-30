@@ -4,8 +4,14 @@
 ; 107
 ; Update the code so it works with Zoo
 ; You should be able to press a key and switch between animals
+; I've deviated from the instructions a bit.
+; Instead of using k & l to focus on a particular animal
+; I simply use space to trigger a swap
 ; In this problem we want to apply the design recipe for mixed data
+
 ; http://htdp.org/2003-09-26/Book/curriculum-Z-H-10.html#node_sec_7.2
+
+
 
 (require 2htdp/universe)
 (require 2htdp/image)
@@ -47,7 +53,7 @@
 ; Test instances used in multiple test cases
 (define cham1 (make-vcham (/ SN-WIDTH 2) 100))
 (define cat1 [make-vcat (/ SN-WIDTH 2) 100])
-(define zoo1 (make-zoo cham1 cat1))
+(define zoo1 (make-zoo cat1 cham1))
 
 ; Helper functions
 ; Number -> Number
@@ -117,21 +123,28 @@
                                  "center"
                                  "bottom"
                                  SN))
-; VAnimal -> VAnimal
+; Zoo VAnimal -> Zoo
+; creates new zoowhere hidden of z is unchanged
+; and focused is va
+(define (update-focused z va)
+  (make-zoo va (zoo-hidden z)))
+
+(check-expect (update-focused zoo1 cham1)
+              (make-zoo cham1 cham1))
+; Zoo -> Zoo
 ; Each clock tick update the x position of va and decrease its happiness
-(define (clock-tick-handler va)
-  (cond [(vcat? va)
-         (make-vcat (calc-next-x (vcat-cx va))
-                    (decrease-happy (vcat-ch va)))]
-        [(vcham? va)
-         (make-vcham(calc-next-x (vcham-cx va))
-                    (decrease-happy (vcham-ch va)))]))
-(check-expect (clock-tick-handler cham1)
-              (make-vcham (calc-next-x (vcham-cx cham1))
-                          (decrease-happy (vcham-ch cham1))))
-(check-expect (clock-tick-handler cat1)
-              (make-vcat (calc-next-x (vcat-cx cat1))
-                         (decrease-happy (vcat-ch cat1))))
+(define (clock-tick-handler z)
+  (cond [(vcat? (zoo-focused z))
+         (update-focused
+          z
+          (make-vcat (calc-next-x (vcat-cx (zoo-focused z)))
+                     (decrease-happy (vcat-ch (zoo-focused z)))))]
+        [(vcham? (zoo-focused z))
+         (update-focused
+          z
+          (make-vcham (calc-next-x (vcham-cx (zoo-focused z)))
+                      (decrease-happy (vcham-ch (zoo-focused z)))))]))
+
 ; VAnimal -> Image
 ; Render a happiness bar for va
 (define (render-happy-bar va)
@@ -156,14 +169,25 @@
     [(key=? key "up")    (+ hlevel (* hlevel SMHAPPY))]
     [(key=? key "down")  (+ hlevel (* hlevel LGHAPPY))]
     [else (decrease-happy hlevel)]))             
-; VAnimal -> VAnimal
-(define (key-handler va key)
-  (cond [(vcat? va)
-         (make-vcat (vcat-cx va)
-                    (increase-happy (vcat-ch va) key))]
-        [(vcham? va)
-         (make-vcham (vcham-cx va)
-                     (increase-happy (vcham-ch va) key))]))
+; Zoo -> Zoo
+(define (switch-focus z)
+  (make-zoo (zoo-hidden z) (zoo-focused z)))
+; Zoo -> Zoo
+; if space bar was pressed then swap which VAnimal is focused
+; otherwise increase or decrease happiness of focused VAnimal
+(define (key-handler z key)
+  (cond  [(key=? key " ")
+          (switch-focus z)]
+         [(vcat? (zoo-focused z))
+          (update-focused
+           z
+           (make-vcat (vcat-cx (zoo-focused z))
+                    (increase-happy (vcat-ch (zoo-focused z)) key)))]
+        [(vcham? (zoo-focused z))
+         (update-focused
+          z
+          (make-vcham (vcham-cx (zoo-focused z))
+                     (increase-happy (vcham-ch (zoo-focused z)) key)))]))
 
 ; Main
 ; VAnimal -> VAnimal
@@ -172,6 +196,8 @@
     [to-draw render]
     [on-tick clock-tick-handler 1]
     [on-key key-handler]))
-(define start-zoo (zoo (make-vcat 0 100)
+(define start-zoo (make-zoo
+                       (make-vcat 0 100)
                        (make-vcham 0 100)))
-;(main start-zoo)
+(main start-zoo)
+
