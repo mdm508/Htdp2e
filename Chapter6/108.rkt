@@ -9,11 +9,11 @@
 ; ------------------------------------------------
 ;  DFA for CrossingState
 ;  STATE              EVENT         RESULT-STATE            
-;  Walking t          1 < t         Walking t-1
-;                     t = 1         Counting 
-;  Counting      1 <= t < 9         Counting
+;  Walking t     1 <= t <= 9          Walking t-1
+;                     t = 0         Counting 
+;  Counting      1 <= t <= 9         Counting
 ;                     t = 0         Waiting
-;  Waiting            space         Walking t=10
+;  Waiting            space         Walking t=9
 ; ------------------------------------------------
 (require 2htdp/image)
 (require 2htdp/universe)
@@ -21,17 +21,68 @@
 (define WALK-MAN (bitmap/file "../assets/pedestrian_traffic_light_green.png"))
 ; Definition of CrossingState
 (define-struct cs [cur])
+; (make-cs cur) creates a CrossingState.
+; cur is the current CrossingState and it is one of the following types
+; a Walk
+; a Count
+; a Wait
+; Definition of WalkingState
 (define-struct walk [time])
+; (make-walk time)
+; 1 <= time <= 10 and time is a Number
+; Definition of CountingState
 (define-struct count [time])
+; (make-count time)
+; 1 <= time <= 9 and time is a Number
+; Definition of WaitingState
 (define-struct wait [])
+; (make-wait) is a struct
 ; Number -> Image
 ; produce a number as an image
+;
+; We define a TimedState to be either
+; - WalkingState
+; - CountingState
+; thus all TimeStates are CrossingStates.
+; Template
+;(cond [(count? cs) ...]
+;      [(wait? cs) ...]
+;      [(walk? cs) ...]
+;      )
 (define (number->image n)
   ...
   )
+; TimedState -> CrossingState
+(define (decrease-time ts)
+  (cond [(count? ts)
+         (if (= (count-time ts) 0)
+             (make-wait)
+             (make-count (- (count-time ts) 1)))]
+        [(walk? ts)
+         (if (=  (walk-time ts) 0)
+             (make-count 9)
+             (make-walk (- (walk-time ts) 1)))]
+        )
+  )
+(define test-count-max-low (make-count 0))
+(define test-count-six (make-count 6))
+(define test-walk-max-low (make-walk 0))
+(define test-walk-six (make-walk 6))
+(check-expect (decrease-time test-count-max-low)
+              (make-wait))
+(check-expect (decrease-time test-count-six)
+              (make-count (- (count-time test-count-six) 1)))
+(check-expect (decrease-time test-walk-max-low)
+              (make-count 9))
+(check-expect (decrease-time test-walk-six)
+              (make-walk (- (walk-time test-walk-six) 1)))
+
 ; CrossingState -> CrossingState
 (define (tick-handler cs)
-  ...
+  (cond [(count? cs) (decrease-time cs)]
+        [(walk? cs) (decrease-time cs)]
+        [(wait? cs) cs]
+        )
   )
 ; CrossingState -> CrossingState
 (define (key-handler cs)
