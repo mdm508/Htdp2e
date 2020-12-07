@@ -49,9 +49,16 @@
 ;      [(wait? cs) ...]
 ;      [(walk? cs) ...]
 ;      )
-(define (number->image n)
-  ...
+; CountingState -> Image
+; render a number as text
+(define (count->image cs)
+  (text (number->string (count-time cs)) 24 "black")
   )
+(check-expect (count->image (make-count 24))
+              (text (number->string (count-time
+                                     (make-count 24))
+                                    )
+                     24 "black"))
 ; TimedState -> CrossingState
 (define (decrease-time ts)
   (cond [(count? ts)
@@ -84,13 +91,26 @@
         [(wait? cs) cs]
         )
   )
-; CrossingState -> CrossingState
-(define (key-handler cs)
-  ...
+; CrossingState KeyEven -> CrossingState
+(define (key-handler cs ke)
+  (if (and (wait? cs) (key=? " " ke))
+      (make-walk 9)
+      cs
+      )
   )
+(check-expect (key-handler  (make-wait) " ")
+              (make-walk 9))
+(check-expect (key-handler (make-wait) "a")
+              (make-wait))
+(check-expect (key-handler (make-count 10) " ")
+              (make-count 10))
 ; CrossingState -> Image
 (define (render cs)
-  ...
+  (cond [(count? cs)
+         (count->image cs)]
+        [(wait? cs) WAIT-MAN]
+        [(walk? cs) WALK-MAN]
+      )
   )
 ; CrossingState -> CrossingState
 (define (main cs0)
@@ -99,3 +119,5 @@
     [on-tick tick-handler 1]
     [on-key key-handler]
     ))
+
+(main (make-wait))
